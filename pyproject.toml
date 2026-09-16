@@ -7,7 +7,7 @@ name = "evolver"
 version = "0.1.0"
 description = "A deliberately small, restartable agent experiment"
 requires-python = ">=3.11"
-dependencies = ["openai>=1.0"]
+dependencies = ["openai>=1.0", "socksio>=1.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

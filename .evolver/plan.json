@@ -1,0 +1,13 @@
+{
+  "objective": "Run a command that prints exactly: Hello, world!",
+  "steps": [
+    {
+      "id": "1",
+      "instruction": "Run the shell command: printf 'Hello, world!'",
+      "verification": {
+        "kind": "stdout_equals",
+        "expected": "Hello, world!"
+      }
+    }
+  ]
+}

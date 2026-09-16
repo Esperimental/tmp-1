@@ -1,5 +1,7 @@
 # Evolver experiment
 
+[![Tests](https://github.com/Esperimental/tmp-1/actions/workflows/tests.yml/badge.svg)](https://github.com/Esperimental/tmp-1/actions/workflows/tests.yml)
+
 This is the smallest useful experiment for a restartable coding agent. It reads
 an objective, asks a model for a structured plan, compares that plan with prior
 verified runs, proposes one command, and optionally executes and verifies it.
