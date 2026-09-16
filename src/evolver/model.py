@@ -29,7 +29,11 @@ def _json_object(text: str) -> dict:
 class OpenAIModel:
     def __init__(self, model: str | None = None) -> None:
         self._client = OpenAI()
-        self._model = model or os.environ.get("EVOLVER_MODEL", "gpt-5-mini")
+        self._model = model or os.environ.get("EVOLVER_MODEL", "gpt-5.6-luna")
+
+    @property
+    def model_name(self) -> str:
+        return self._model
 
     def _ask(self, instructions: str, prompt: str) -> dict:
         response = self._client.responses.create(

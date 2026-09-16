@@ -22,17 +22,20 @@ Optionally select a model with `EVOLVER_MODEL`.
 
 ## First run
 
-Preview the next action without executing it:
+Run the next action, including a real model call and command execution:
 
 ```bash
 evolver run
 ```
 
-After reviewing the proposed argv, explicitly permit one command:
+To persist and inspect the proposed argv without executing it:
 
 ```bash
-evolver run --execute
+evolver run --preview
 ```
+
+The next normal run executes that exact persisted proposal rather than asking
+the model to generate it again.
 
 Inspect reconciled state at any time, including after an interrupted run:
 
@@ -42,3 +45,10 @@ evolver status
 
 Persistent state is stored under `.evolver/`. Do not put credentials in the
 objective or generated state.
+
+## Live GitHub experiment
+
+The `Live agent` workflow makes real API calls using `gpt-5.6-luna`, executes
+the generated command, verifies it, checks restart reconciliation, and uploads
+the `.evolver` evidence. It requires an Actions repository secret named
+`OPENAI_API_KEY` and is started manually from the Actions tab.

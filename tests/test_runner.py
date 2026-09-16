@@ -37,7 +37,17 @@ def test_preview_persists_plan_but_does_not_execute(tmp_path: Path) -> None:
     assert argv == ["printf", "Hello, world!\n"]
     assert verified is None
     assert runner.plan_path.exists()
+    assert runner.proposal_path.exists()
     assert not runner.runs_path.exists()
+
+
+def test_execute_reuses_the_persisted_proposal(tmp_path: Path) -> None:
+    runner = make_runner(tmp_path)
+    preview_argv, _ = runner.run_next(execute=False)
+    execute_argv, verified = runner.run_next(execute=True)
+
+    assert execute_argv == preview_argv
+    assert verified is True
 
 
 def test_execute_records_evidence_and_reconciles_after_restart(tmp_path: Path) -> None:

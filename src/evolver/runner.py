@@ -24,6 +24,7 @@ class Runner:
         self.state_dir = self.root / ".evolver"
         self.plan_path = self.state_dir / "plan.json"
         self.runs_path = self.state_dir / "runs.jsonl"
+        self.proposal_path = self.state_dir / "proposal.json"
 
     def repository_summary(self) -> str:
         paths = sorted(
@@ -72,12 +73,27 @@ class Runner:
     def next_step(self, plan: Plan) -> Step | None:
         return next((status.step for status in self.reconcile(plan) if not status.complete), None)
 
+    def load_or_create_proposal(self, step: Step) -> list[str]:
+        if self.proposal_path.exists():
+            proposal = json.loads(self.proposal_path.read_text(encoding="utf-8"))
+            if proposal.get("step_id") == step.id:
+                argv = proposal.get("argv")
+                if isinstance(argv, list) and argv and all(isinstance(x, str) for x in argv):
+                    return argv
+        argv = self.model.propose_command(step, self.repository_summary())
+        self.state_dir.mkdir(exist_ok=True)
+        self.proposal_path.write_text(
+            json.dumps({"step_id": step.id, "argv": argv}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return argv
+
     def run_next(self, execute: bool, timeout_seconds: int = 30) -> tuple[list[str], bool | None]:
         plan = self.load_or_create_plan()
         step = self.next_step(plan)
         if step is None:
             raise RuntimeError("All plan steps are already complete")
-        argv = self.model.propose_command(step, self.repository_summary())
+        argv = self.load_or_create_proposal(step)
         if not execute:
             return argv, None
         started = datetime.now(timezone.utc).isoformat()

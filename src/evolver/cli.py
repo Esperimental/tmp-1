@@ -11,8 +11,8 @@ from .runner import Runner
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="evolver")
     subcommands = parser.add_subparsers(dest="command", required=True)
-    run = subcommands.add_parser("run", help="Propose or execute one incomplete step")
-    run.add_argument("--execute", action="store_true", help="Execute the proposed argv")
+    run = subcommands.add_parser("run", help="Execute one incomplete step")
+    run.add_argument("--preview", action="store_true", help="Persist and show argv without executing")
     subcommands.add_parser("status", help="Reconcile the saved plan with current state")
     return parser
 
@@ -26,10 +26,11 @@ def main() -> None:
             marker = "complete" if status.complete else "incomplete"
             print(f"{status.step.id}: {marker} - {status.evidence}")
         return
-    argv, verified = runner.run_next(execute=args.execute)
+    print("Model: " + runner.model.model_name)
+    argv, verified = runner.run_next(execute=not args.preview)
     print("Proposed argv: " + json.dumps(argv))
     if verified is None:
-        print("Not executed. Review it, then rerun with --execute.")
+        print("Not executed. The exact proposal is persisted for the next run.")
     else:
         print("Verification: " + ("passed" if verified else "failed"))
 
