@@ -1,6 +1,9 @@
 name: Live agent
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
