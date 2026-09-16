@@ -59,4 +59,5 @@ jobs:
         with:
           name: evolver-evidence
           path: .evolver/
+          include-hidden-files: true
           if-no-files-found: error
