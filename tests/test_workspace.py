@@ -13,5 +13,6 @@ def test_workspace_context_is_bounded_and_excludes_sensitive_named_files(tmp_pat
 
     assert "do-not-share" not in summary
     assert "secret_notes.txt" not in summary
+    assert "visible content" not in summary
     assert "app.py" in snapshot["included"]
     assert "large.txt" in snapshot["omitted"]

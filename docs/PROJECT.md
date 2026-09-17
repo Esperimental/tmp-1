@@ -84,6 +84,9 @@ Current behaviour:
 - Uses Luna to propose one direct process invocation as an argv array.
 - Persists the proposal before execution so preview and execution cannot drift.
 - Executes one command without shell interpolation and with a timeout.
+- Gives generated commands a bounded repository manifest rather than silently
+  supplying all source contents; the agent must inspect relevant files when it
+  needs their contents.
 - Gives generated commands a minimal allowlisted environment that excludes API
   keys, GitHub tokens and other parent-process credentials.
 - Verifies exact stdout or exact file content.

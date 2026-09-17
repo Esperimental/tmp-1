@@ -24,9 +24,11 @@ def visible_text_files(root: Path) -> list[Path]:
     return files
 
 
-def workspace_summary(root: Path, content_limit: int = 12_000) -> str:
+def workspace_summary(root: Path, content_limit: int = 0) -> str:
     files = visible_text_files(root)
     sections = ["Files:", *[str(path.relative_to(root)) for path in files[:200]]]
+    if content_limit <= 0:
+        return "\n".join(sections)
     remaining = content_limit
     omitted = 0
     for path in files:

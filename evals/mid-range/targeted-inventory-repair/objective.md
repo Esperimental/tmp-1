@@ -1,0 +1,1 @@
+The inventory availability calculation is incorrect. Inspect the relevant tests and implementation, identify the cause, repair only the necessary production code, run focused verification, then run the full local test suite. Do not modify tests or unrelated formatting code. Stop once the suite passes.

@@ -49,6 +49,37 @@ class EvidenceEvaluator:
         )
 
 
+class TargetedRepairModel:
+    @property
+    def model_name(self) -> str:
+        return "fake-targeted-repair-model"
+
+    def create_plan(self, objective: str, repository_summary: str) -> Plan:
+        fixed = (
+            "from __future__ import annotations\n\n\n"
+            "def available_quantity(received: int, reserved: int) -> int:\n"
+            "    \"\"\"Return stock that can still be sold.\"\"\"\n"
+            "    return received - reserved\n"
+        )
+        return Plan(
+            objective,
+            (
+                Step("observe", "Run the local tests", Verification("exit_code_equals", "1")),
+                Step("repair", "Repair the availability calculation", Verification("file_content_equals", fixed, "inventory.py")),
+                Step("verify", "Run the local tests again", Verification("exit_code_equals", "0")),
+            ),
+        )
+
+    def propose_command(self, step: Step, repository_summary: str) -> list[str]:
+        if step.id in {"observe", "verify"}:
+            return [sys.executable, "-m", "unittest", "-q"]
+        return [
+            sys.executable,
+            "-c",
+            "from pathlib import Path; Path('inventory.py').write_text(\"from __future__ import annotations\\n\\n\\ndef available_quantity(received: int, reserved: int) -> int:\\n    \\\"\\\"\\\"Return stock that can still be sold.\\\"\\\"\\\"\\n    return received - reserved\\n\")",
+        ]
+
+
 def make_repair_task(tmp_path: Path) -> Path:
     task = tmp_path / "evals" / "mid-range" / "repair"
     task.mkdir(parents=True)
@@ -96,3 +127,26 @@ def test_tasks_can_be_selected_by_phase(tmp_path: Path) -> None:
 
     assert discover_tasks(tmp_path / "evals", "simple") == []
     assert discover_tasks(tmp_path / "evals", "mid-range") == [TaskDefinition.load(task)]
+
+
+def test_checked_in_targeted_repair_benchmark_has_a_local_acceptance_command() -> None:
+    task = Path("evals/mid-range/targeted-inventory-repair")
+
+    definition = TaskDefinition.load(task)
+
+    assert definition.max_commands == 5
+    assert definition.acceptance_argv == ("python3", "-m", "unittest", "-q")
+    assert definition.protected_paths == ("test_inventory.py", "formatters.py")
+
+
+def test_checked_in_targeted_repair_benchmark_accepts_a_narrow_fix(tmp_path: Path) -> None:
+    definition = TaskDefinition.load(Path("evals/mid-range/targeted-inventory-repair"))
+
+    evaluation = run_task(
+        definition,
+        tmp_path / "results",
+        model=TargetedRepairModel(),
+        evaluator=EvidenceEvaluator(),
+    )
+
+    assert evaluation.gate_result == "pass"
