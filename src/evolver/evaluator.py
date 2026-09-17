@@ -61,8 +61,7 @@ def build_task_packet(
     verified_steps = {
         str(run.get("step_id")) for run in runs if run.get("verified") is True
     }
-    verified = bool(runs) and all(run.get("verified") is True for run in runs)
-    verified = verified and planned_steps == verified_steps
+    verified = bool(runs) and planned_steps == verified_steps
     commands = [run.get("argv") for run in runs]
     repeated_actions = sum(
         1 for previous, current in zip(commands, commands[1:]) if previous == current

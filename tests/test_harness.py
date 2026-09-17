@@ -7,7 +7,7 @@ from pathlib import Path
 
 from evolver.domain import Plan, Step, Verification
 from evolver.evaluation import DIMENSIONS, TaskEvaluation
-from evolver.harness import TaskDefinition, discover_tasks, run_task
+from evolver.harness import TaskDefinition, _snapshot, discover_tasks, run_task
 
 
 class RepairModel:
@@ -250,3 +250,14 @@ def test_source_task_uses_a_pinned_disposable_git_clone(tmp_path: Path) -> None:
 
     assert evaluation.gate_result == "pass"
     assert "return b" in (target / "calc.py").read_text(encoding="utf-8")
+
+
+def test_protected_directory_snapshot_ignores_generated_python_cache(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_example.py").write_text("pass\n", encoding="utf-8")
+    cache = tests / "__pycache__"
+    cache.mkdir()
+    (cache / "test_example.pyc").write_bytes(b"generated")
+
+    assert _snapshot(tmp_path, ("tests",)) == {"tests/test_example.py": b"pass\n"}

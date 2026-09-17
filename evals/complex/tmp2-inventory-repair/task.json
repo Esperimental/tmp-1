@@ -6,6 +6,11 @@
     "clone_url": "https://github.com/Esperimental/tmp-2.git",
     "revision": "a40b16c3866eddba09439f79be0568c3bf88a754"
   },
-  "acceptance": {"argv": ["python3", "-m", "pytest", "-q"]},
+  "acceptance": {
+    "argv": [
+      "python3", "-c",
+      "import subprocess, sys, tempfile; from pathlib import Path; result = subprocess.run([sys.executable, '-m', 'pytest', '-q']); result.check_returncode(); sys.path.insert(0, 'src'); from inventory_cli.store import Inventory; path = Path(tempfile.mkdtemp()) / 'nested' / 'inventory.json'; Inventory(path).add('resistor', 1); assert Inventory(path).items() == [('resistor', 1)]"
+    ]
+  },
   "protected_paths": ["tests"]
 }

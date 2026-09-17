@@ -60,6 +60,28 @@ def test_simple_task_gate_requires_exactly_one_plan_step(tmp_path: Path) -> None
     assert build_task_packet(tmp_path, "too-many-steps")["objective_gate"] == "fail"
 
 
+def test_gate_allows_a_step_to_recover_after_a_failed_attempt(tmp_path: Path) -> None:
+    state = tmp_path / ".evolver"
+    state.mkdir()
+    (tmp_path / "objective.md").write_text("Recover\n", encoding="utf-8")
+    (state / "plan.json").write_text(
+        json.dumps({"objective": "Recover", "steps": [{"id": "repair"}]}),
+        encoding="utf-8",
+    )
+    (state / "proposal.json").write_text(
+        json.dumps({"step_id": "repair", "argv": ["true"]}), encoding="utf-8"
+    )
+    (state / "runs.jsonl").write_text(
+        json.dumps({"step_id": "repair", "argv": ["false"], "verified": False})
+        + "\n"
+        + json.dumps({"step_id": "repair", "argv": ["true"], "verified": True})
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert build_task_packet(tmp_path, "recovery") ["objective_gate"] == "pass"
+
+
 def test_evaluator_prompt_explicitly_detects_inefficiency_and_loops() -> None:
     assert "repeated actions" in EVALUATOR_INSTRUCTIONS
     assert "no-progress" in EVALUATOR_INSTRUCTIONS

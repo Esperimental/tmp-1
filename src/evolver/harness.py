@@ -87,6 +87,8 @@ def _snapshot(workspace: Path, paths: tuple[str, ...]) -> dict[str, bytes | None
                     str(child.relative_to(workspace)): child.read_bytes()
                     for child in candidate.rglob("*")
                     if child.is_file()
+                    and "__pycache__" not in child.parts
+                    and child.suffix != ".pyc"
                 }
             )
         else:
