@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,7 @@ class TaskDefinition:
     phase: str
     max_commands: int
     acceptance_argv: tuple[str, ...] = ()
+    acceptance_script: str | None = None
     protected_paths: tuple[str, ...] = ()
     source: TaskSource | None = None
 
@@ -40,6 +42,18 @@ class TaskDefinition:
         phase = str(value["phase"])
         max_commands = int(value["max_commands"])
         protected_paths = tuple(str(item) for item in value.get("protected_paths", []))
+        acceptance_argv = tuple(str(item) for item in acceptance.get("argv", []))
+        acceptance_script = acceptance.get("script")
+        if acceptance_script is not None:
+            if not isinstance(acceptance_script, str):
+                raise ValueError("Acceptance script must be a path string")
+            script_path = Path(acceptance_script)
+            if script_path.is_absolute() or ".." in script_path.parts:
+                raise ValueError("Acceptance script must stay inside the task directory")
+            if not (directory / script_path).is_file():
+                raise ValueError("Acceptance script does not exist")
+        if acceptance_argv and acceptance_script:
+            raise ValueError("Use either an acceptance command or script, not both")
         source_value = value.get("source")
         source = None
         if source_value is not None:
@@ -63,7 +77,8 @@ class TaskDefinition:
             task_id=task_id,
             phase=phase,
             max_commands=max_commands,
-            acceptance_argv=tuple(str(item) for item in acceptance.get("argv", [])),
+            acceptance_argv=acceptance_argv,
+            acceptance_script=acceptance_script,
             protected_paths=protected_paths,
             source=source,
         )
@@ -108,10 +123,15 @@ def _acceptance(
     protected_changes = [
         path for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)
     ]
-    if definition.acceptance_argv:
+    if definition.acceptance_argv or definition.acceptance_script:
+        argv = (
+            list(definition.acceptance_argv)
+            if definition.acceptance_argv
+            else [sys.executable, str(definition.directory / str(definition.acceptance_script)), str(workspace)]
+        )
         try:
             result = subprocess.run(
-                definition.acceptance_argv,
+                argv,
                 cwd=workspace,
                 env=runner.command_environment(),
                 capture_output=True,
@@ -121,7 +141,7 @@ def _acceptance(
             )
             accepted = result.returncode == 0
             evidence: dict[str, Any] = {
-                "argv": list(definition.acceptance_argv),
+                "argv": argv,
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
@@ -130,7 +150,7 @@ def _acceptance(
         except subprocess.TimeoutExpired as error:
             accepted = False
             evidence = {
-                "argv": list(definition.acceptance_argv),
+                "argv": argv,
                 "exit_code": None,
                 "stdout": error.stdout or "",
                 "stderr": error.stderr or "",

@@ -230,6 +230,12 @@ def test_source_task_uses_a_pinned_disposable_git_clone(tmp_path: Path) -> None:
     task = tmp_path / "source-task"
     task.mkdir()
     (task / "objective.md").write_text("Repair the calculator\n", encoding="utf-8")
+    (task / "acceptance.py").write_text(
+        "import sys\nfrom pathlib import Path\n\n"
+        "workspace = Path(sys.argv[1])\n"
+        "assert 'return a + b' in (workspace / 'calc.py').read_text(encoding='utf-8')\n",
+        encoding="utf-8",
+    )
     (task / "task.json").write_text(
         json.dumps(
             {
@@ -237,7 +243,7 @@ def test_source_task_uses_a_pinned_disposable_git_clone(tmp_path: Path) -> None:
                 "phase": "complex",
                 "max_commands": 4,
                 "source": {"clone_url": str(target), "revision": revision},
-                "acceptance": {"argv": [sys.executable, "-m", "unittest", "-q"]},
+                "acceptance": {"script": "acceptance.py"},
                 "protected_paths": ["test_calc.py"],
             }
         ),
