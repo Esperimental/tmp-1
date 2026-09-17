@@ -135,3 +135,18 @@ def test_stdout_can_be_verified_against_existing_file(tmp_path: Path) -> None:
     _, verified = Runner(tmp_path, FileModel()).run_next(execute=True)
 
     assert verified is True
+
+
+def test_missing_executable_is_recorded_as_a_failed_attempt(tmp_path: Path) -> None:
+    class MissingCommandModel(FakeModel):
+        def propose_command(self, step: Step, repository_summary: str) -> list[str]:
+            return ["definitely-not-an-installed-command"]
+
+    (tmp_path / "objective.md").write_text("Run a missing command\n", encoding="utf-8")
+    runner = Runner(tmp_path, MissingCommandModel())
+    _, verified = runner.run_next(execute=True)
+
+    assert verified is False
+    evidence = runner.runs_path.read_text(encoding="utf-8")
+    assert "FileNotFoundError" in evidence
+    assert not runner.proposal_path.exists()

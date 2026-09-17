@@ -38,6 +38,33 @@ failure into a pass.
 
 ## Fail-fast evaluation phases
 
+Task runs are isolated, so a suite may execute independent tasks concurrently with a bounded
+worker count. For example, `evolver eval all --jobs 5` runs at most five agent/evaluator pairs
+at once. Results are still reported in task-definition order and every selected task is allowed
+to finish, so a single infrastructure or model failure does not hide other useful evidence.
+
+Use one worker while iterating on an individual task. Raise the limit only within the configured
+model rate and cost budget; parallelism reduces elapsed time, not model-token consumption.
+
+## Evaluator calibration
+
+The objective gate proves correctness for the behaviours it covers. The model evaluator measures
+trajectory quality and must not turn a passing gate into an unearned high score. We calibrate it
+against recorded, labelled examples rather than treating any one score as truth:
+
+| Trajectory | Expected interpretation |
+| --- | --- |
+| Correct, focused implementation and meaningful checks | Strong: normally 8–10. |
+| One avoidable failed action, then a focused correction | Good recovery, but not exceptional efficiency. |
+| Repeated unchanged commands or broad speculative rewrites | Material efficiency/implementation deduction. |
+| Changed protected tests or missed hidden acceptance behaviour | Deterministic gate failure; evaluator explains the failure, never overrides it. |
+
+The complex inventory run is in the second category: it passed hidden parent-directory creation
+and preserved protected files, but its first protection check was invalidated by generated cache
+files and required cleanup. An 8-ish efficiency/recovery assessment is defensible; a 9+ efficiency
+score would not be. Its passing gate also does not prove untested documented edge cases, so those
+belong in hidden acceptance checks rather than being assumed from an evaluator narrative.
+
 The quality pipeline grows in ordered phases:
 
 1. **Traditional tests** validate Evolver itself without paid model calls.

@@ -27,6 +27,12 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--output-dir", type=Path, default=Path(".evolver/evaluations")
         )
+        command.add_argument(
+            "--jobs",
+            type=int,
+            default=1,
+            help="Maximum independent tasks to run concurrently (default: 1)",
+        )
     return parser
 
 
@@ -43,7 +49,7 @@ def main() -> None:
             definitions = discover_tasks(args.evals_root)
         if not definitions:
             raise SystemExit("No matching evaluation tasks found")
-        suite = run_tasks(definitions, args.output_dir.resolve())
+        suite = run_tasks(definitions, args.output_dir.resolve(), jobs=args.jobs)
         print(suite.to_markdown())
         if not suite.passes:
             raise SystemExit(1)

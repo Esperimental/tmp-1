@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import threading
+import time
+from unittest.mock import patch
 from pathlib import Path
+
+import pytest
 
 from evolver.domain import Plan, Step, Verification
 from evolver.evaluation import DIMENSIONS, TaskEvaluation
@@ -283,3 +288,38 @@ def test_suite_records_each_task_error_and_continues(tmp_path: Path) -> None:
     assert [task.gate_result for task in report.tasks] == ["error", "error"]
     assert (tmp_path / "results" / "missing-one.json").exists()
     assert (tmp_path / "results" / "missing-two.json").exists()
+
+
+def test_suite_runs_independent_tasks_concurrently_and_preserves_definition_order(tmp_path: Path) -> None:
+    definitions = [
+        TaskDefinition(tmp_path / name, name, "simple", 1)
+        for name in ("first", "second", "third")
+    ]
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def fake_run_task(definition: TaskDefinition, output_dir: Path) -> TaskEvaluation:
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(0.03)
+        with lock:
+            active -= 1
+        return TaskEvaluation(
+            task_id=definition.task_id,
+            gate_result="pass",
+            scores={name: 8.0 for name in DIMENSIONS},
+        )
+
+    with patch("evolver.harness.run_task", side_effect=fake_run_task):
+        report = run_tasks(definitions, tmp_path / "results", jobs=2)
+
+    assert peak == 2
+    assert [task.task_id for task in report.tasks] == ["first", "second", "third"]
+
+
+def test_suite_rejects_an_invalid_worker_limit(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="jobs must be at least one"):
+        run_tasks([], tmp_path / "results", jobs=0)

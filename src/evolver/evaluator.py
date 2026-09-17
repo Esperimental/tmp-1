@@ -37,7 +37,11 @@ specific evidence IDs for every finding. Detect repeated actions, unchanged test
 no-progress work, excessive investigation, broad changes, weak testing, premature completion,
 and work performed after success. A plan records intent but does not prescribe an exact command;
 never penalize an equivalent successful approach merely for using a different command or tool.
-Do not invent problems unsupported by the packet. A simple
+Do not give a 9 or 10 for efficiency when the trajectory contains avoidable failed work or a
+redundant verification. A single corrected failed action can still demonstrate good recovery,
+but it is not an exceptional trajectory. Completion measures whether the objective gate was
+reached; recovery and efficiency measure the cost of reaching it. Do not invent problems
+unsupported by the packet. A simple
 task can legitimately need little investigation or recovery; score proportionality rather than
 rewarding unnecessary activity."""
 

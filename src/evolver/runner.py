@@ -119,6 +119,10 @@ class Runner:
             stdout = error.stdout or ""
             stderr = error.stderr or ""
             exit_code = None
+        except OSError as error:
+            stdout = ""
+            stderr = f"{type(error).__name__}: {error}"
+            exit_code = None
         if step.verification.kind == "stdout_equals":
             verified = exit_code == 0 and stdout.rstrip("\n") == step.verification.expected.rstrip("\n")
         elif step.verification.kind == "stdout_equals_file":

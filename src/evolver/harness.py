@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -232,32 +233,48 @@ def run_task(
         return evaluation
 
 
-def run_tasks(definitions: list[TaskDefinition], output_dir: Path) -> EvaluationSuiteReport:
-    evaluations: list[TaskEvaluation] = []
-    for definition in definitions:
-        try:
-            evaluations.append(run_task(definition, output_dir))
-        except Exception as error:
-            evaluation = TaskEvaluation(
-                task_id=definition.task_id,
-                gate_result="error",
-                scores={name: 0.0 for name in DIMENSIONS},
-                findings=(
-                    Finding(
-                        severity="critical",
-                        area="execution",
-                        evidence=(type(error).__name__,),
-                        description=str(error),
-                        recommendation="Inspect the recorded task error and correct the harness or model protocol.",
-                        confidence=1.0,
-                    ),
-                ),
-            )
-            output_dir.mkdir(parents=True, exist_ok=True)
-            (output_dir / f"{definition.task_id}.json").write_text(
-                json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
-            )
-            evaluations.append(evaluation)
-    suite = EvaluationSuiteReport(tuple(evaluations), EvaluationPolicy())
+def _task_error(definition: TaskDefinition, output_dir: Path, error: Exception) -> TaskEvaluation:
+    evaluation = TaskEvaluation(
+        task_id=definition.task_id,
+        gate_result="error",
+        scores={name: 0.0 for name in DIMENSIONS},
+        findings=(
+            Finding(
+                severity="critical",
+                area="execution",
+                evidence=(type(error).__name__,),
+                description=str(error),
+                recommendation="Inspect the recorded task error and correct the harness or model protocol.",
+                confidence=1.0,
+            ),
+        ),
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / f"{definition.task_id}.json").write_text(
+        json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
+    )
+    return evaluation
+
+
+def run_tasks(
+    definitions: list[TaskDefinition], output_dir: Path, *, jobs: int = 1
+) -> EvaluationSuiteReport:
+    if jobs < 1:
+        raise ValueError("jobs must be at least one")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    evaluations: dict[str, TaskEvaluation] = {}
+    with ThreadPoolExecutor(max_workers=jobs) as executor:
+        futures = {
+            executor.submit(run_task, definition, output_dir): definition for definition in definitions
+        }
+        for future in as_completed(futures):
+            definition = futures[future]
+            try:
+                evaluations[definition.task_id] = future.result()
+            except Exception as error:
+                evaluations[definition.task_id] = _task_error(definition, output_dir, error)
+    ordered_evaluations = tuple(evaluations[definition.task_id] for definition in definitions)
+    suite = EvaluationSuiteReport(ordered_evaluations, EvaluationPolicy())
     (output_dir / "report.md").write_text(suite.to_markdown(), encoding="utf-8")
     return suite
