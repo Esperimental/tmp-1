@@ -111,6 +111,34 @@ build software autonomously.
 Generated state is intentionally readable and versionable. Secrets must never
 be stored in these files.
 
+## Capability evidence
+
+This table is the working capability map, not a claim that the system is ready
+for general software engineering. A capability moves to **proven** only when a
+model-driven task has passed its objective gate and evaluation policy. Passing
+one narrow benchmark proves only that bounded case; it does not establish a
+general ability.
+
+| Capability | Status | Evidence or next proof |
+| --- | --- | --- |
+| One-command execution and exact verification | Proven, narrow | Four isolated simple tasks passed: output, arguments, file creation and file inspection. |
+| Restartable state and persisted proposals | Proven, narrow | Deterministic tests cover preview, execution and reconciliation after restart. |
+| Small local code repair | Proven, narrow | One broken-inventory repair task passed with protected tests and local acceptance checks. |
+| Targeted repository inspection | Evaluating | The agent now receives a file manifest instead of source contents. The targeted-inventory-repair benchmark requires it to inspect relevant evidence. |
+| Narrow changes that preserve unrelated code | Evaluating | Targeted-inventory-repair protects its tests and unrelated formatting module. |
+| Diagnose failures and choose proportionate tests | Planned | Add a small realistic task where test output alone is insufficient and the agent must inspect code before selecting focused verification. |
+| Recover from an incorrect first attempt | Planned | Add a bounded task with a plausible but wrong first diagnosis; evaluate evidence-driven revision rather than a prescribed recovery command. |
+| Small multi-file feature work | Planned | Add a compact feature spanning a boundary such as CLI/API, domain logic and tests. |
+| Git-aware application work | Planned | Work in an isolated repository copy: inspect status/diff, preserve unrelated changes, make a focused commit after acceptance passes. |
+| Build and repair moderate applications | Planned | Complex, held-out tasks: unfamiliar but bounded applications with realistic requirements, regressions and acceptance tests. |
+| Independent change review | Planned | Seed flawed diffs and demonstrate that a reviewer identifies defects the implementer missed. |
+| Compare candidate descendants | Planned | Run parent and candidate on held-out tasks; compare success, regressions, cost and reliability. |
+| Propose changes to Evolver itself | Deferred | Only after the preceding capabilities are evidenced; use isolated descendants and human promotion. |
+
+When a mid-range or complex task reveals a specific weakness, add the smallest
+useful simple task that isolates it. Iterate on that AI-unit test cheaply, then
+rerun the matching higher-level task to check whether the improvement transfers.
+
 ## Near-term progression
 
 Each stage should be implemented and evaluated before moving to the next:
