@@ -125,6 +125,7 @@ def report_suite(input_dir: Path, output_path: Path) -> EvaluationSuiteReport:
     tasks = tuple(
         TaskEvaluation.from_dict(json.loads(path.read_text(encoding="utf-8")))
         for path in sorted(input_dir.glob("*.json"))
+        if not path.name.endswith(".evidence.json")
     )
     suite = EvaluationSuiteReport(tasks, EvaluationPolicy())
     output_path.parent.mkdir(parents=True, exist_ok=True)

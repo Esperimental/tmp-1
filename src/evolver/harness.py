@@ -123,8 +123,11 @@ def run_task(
             runner.run_next(execute=True)
         gate, gate_evidence = _acceptance(definition, workspace, runner, before)
         packet = build_task_packet(workspace, definition.task_id, gate, gate_evidence)
-        evaluation = (evaluator or OpenAIEvaluator()).evaluate(packet)
         output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / f"{definition.task_id}.evidence.json").write_text(
+            json.dumps(packet, indent=2) + "\n", encoding="utf-8"
+        )
+        evaluation = (evaluator or OpenAIEvaluator()).evaluate(packet)
         (output_dir / f"{definition.task_id}.json").write_text(
             json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
         )

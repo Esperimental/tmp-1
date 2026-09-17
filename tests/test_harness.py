@@ -86,6 +86,9 @@ def test_one_mid_range_task_can_run_in_isolation(tmp_path: Path) -> None:
     assert evaluation.gate_result == "pass"
     assert evaluation.metrics["commands"] == 3
     assert (output / "repair.json").exists()
+    evidence = json.loads((output / "repair.evidence.json").read_text(encoding="utf-8"))
+    assert len(evidence["trajectory"]) == 3
+    assert evidence["acceptance_evidence"]["protected_changes"] == []
 
 
 def test_tasks_can_be_selected_by_phase(tmp_path: Path) -> None:
