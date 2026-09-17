@@ -143,6 +143,12 @@ The exact schema may evolve after real trajectories show which information is
 useful. Raw evidence should remain available so new evaluators can reassess old
 runs.
 
+The implemented scorecard uses seven dimensions: planning, investigation,
+implementation, testing, recovery, efficiency and completion. The initial
+policy requires an objective gate pass, no critical finding, an overall score of
+at least `6.0`, and no individual dimension below `4.0`. Aggregate reports list
+every task and expose the strongest and weakest cross-task averages.
+
 ## Comparing Evolver versions
 
 One successful run is anecdotal. Versions should eventually be compared across
