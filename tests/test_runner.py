@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from evolver.domain import Plan, Step, Verification
@@ -21,6 +22,27 @@ class FakeModel:
 
     def propose_command(self, step: Step, repository_summary: str) -> list[str]:
         return ["printf", "Hello, world!\n"]
+
+
+class SecretProbeModel:
+    def create_plan(self, objective: str, repository_summary: str) -> Plan:
+        return Plan(
+            objective=objective,
+            steps=(
+                Step(
+                    id="probe-secret",
+                    instruction="Confirm the command cannot access the parent API key",
+                    verification=Verification(kind="stdout_equals", expected="absent"),
+                ),
+            ),
+        )
+
+    def propose_command(self, step: Step, repository_summary: str) -> list[str]:
+        return [
+            sys.executable,
+            "-c",
+            "import os; print(os.environ.get('OPENAI_API_KEY', 'absent'))",
+        ]
 
 
 def make_runner(tmp_path: Path) -> Runner:
@@ -60,6 +82,19 @@ def test_execute_records_evidence_and_reconciles_after_restart(tmp_path: Path) -
     statuses = restarted.reconcile(plan)
     assert statuses[0].complete is True
     assert restarted.next_step(plan) is None
+
+
+def test_child_command_cannot_access_parent_api_key(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-secret-that-must-not-be-inherited")
+    (tmp_path / "objective.md").write_text("Probe secret isolation\n", encoding="utf-8")
+    runner = Runner(tmp_path, SecretProbeModel())
+
+    _, verified = runner.run_next(execute=True)
+
+    assert verified is True
+    evidence = runner.runs_path.read_text(encoding="utf-8")
+    assert "synthetic-secret-that-must-not-be-inherited" not in evidence
+    assert "OPENAI_API_KEY" not in Runner.command_environment()
 
 
 def test_changed_objective_requires_review(tmp_path: Path) -> None:

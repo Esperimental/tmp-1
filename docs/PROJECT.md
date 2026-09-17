@@ -84,6 +84,8 @@ Current behaviour:
 - Uses Luna to propose one direct process invocation as an argv array.
 - Persists the proposal before execution so preview and execution cannot drift.
 - Executes one command without shell interpolation and with a timeout.
+- Gives generated commands a minimal allowlisted environment that excludes API
+  keys, GitHub tokens and other parent-process credentials.
 - Verifies exact stdout or exact file content.
 - Records the command, output, exit code and verification result under
   `.evolver/`.
@@ -110,19 +112,17 @@ be stored in these files.
 
 Each stage should be implemented and evaluated before moving to the next:
 
-1. Prevent generated commands from receiving credentials or unrelated sensitive
-   environment variables.
-2. Improve structured model responses and validation without adding a large
+1. Improve structured model responses and validation without adding a large
    agent framework.
-3. Reconcile file and repository state rather than relying primarily on prior
+2. Reconcile file and repository state rather than relying primarily on prior
    run records.
-4. Support small multi-step objectives with dependency and stopping rules.
-5. Add a distinct review pass and demonstrate that it catches seeded defects.
-6. Add parent-versus-candidate evaluation in isolated Git worktrees.
-7. Record token usage, monetary cost, duration and failure categories.
-8. Try competing descendants and preserve more than one promising lineage.
-9. Allow controlled evolution of prompts, tools and organisational roles.
-10. Allow proposed changes to non-critical parts of Evolver itself, with human
+3. Support small multi-step objectives with dependency and stopping rules.
+4. Add a distinct review pass and demonstrate that it catches seeded defects.
+5. Add parent-versus-candidate evaluation in isolated Git worktrees.
+6. Record token usage, monetary cost, duration and failure categories.
+7. Try competing descendants and preserve more than one promising lineage.
+8. Allow controlled evolution of prompts, tools and organisational roles.
+9. Allow proposed changes to non-critical parts of Evolver itself, with human
     promotion after tests and evals.
 
 The order can change when experiments provide evidence for a better sequence.

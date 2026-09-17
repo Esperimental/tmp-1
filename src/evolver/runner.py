@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -73,6 +74,11 @@ class Runner:
     def next_step(self, plan: Plan) -> Step | None:
         return next((status.step for status in self.reconcile(plan) if not status.complete), None)
 
+    @staticmethod
+    def command_environment() -> dict[str, str]:
+        allowed_names = ("HOME", "LANG", "LC_ALL", "PATH", "TEMP", "TMP", "TMPDIR")
+        return {name: os.environ[name] for name in allowed_names if name in os.environ}
+
     def load_or_create_proposal(self, step: Step) -> list[str]:
         if self.proposal_path.exists():
             proposal = json.loads(self.proposal_path.read_text(encoding="utf-8"))
@@ -97,10 +103,12 @@ class Runner:
         if not execute:
             return argv, None
         started = datetime.now(timezone.utc).isoformat()
+        command_environment = self.command_environment()
         try:
             result = subprocess.run(
                 argv,
                 cwd=self.root,
+                env=command_environment,
                 capture_output=True,
                 text=True,
                 timeout=timeout_seconds,
@@ -123,6 +131,7 @@ class Runner:
             "stdout": stdout,
             "stderr": stderr,
             "verified": verified,
+            "environment_keys": sorted(command_environment),
         }
         self.state_dir.mkdir(exist_ok=True)
         with self.runs_path.open("a", encoding="utf-8") as handle:
