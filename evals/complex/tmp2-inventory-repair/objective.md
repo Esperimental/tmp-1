@@ -1,0 +1,1 @@
+Repair the broken Inventory CLI implementation so the documented behaviour and full test suite pass. Start by inspecting the existing repository and tests. Make the smallest coherent implementation changes; preserve supported behaviour and do not modify the tests. Work only in this disposable clone. Stop once the full suite passes.

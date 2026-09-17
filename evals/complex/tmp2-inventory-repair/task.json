@@ -1,0 +1,11 @@
+{
+  "id": "tmp2-inventory-repair",
+  "phase": "complex",
+  "max_commands": 12,
+  "source": {
+    "clone_url": "https://github.com/Esperimental/tmp-2.git",
+    "revision": "a40b16c3866eddba09439f79be0568c3bf88a754"
+  },
+  "acceptance": {"argv": ["python3", "-m", "pytest", "-q"]},
+  "protected_paths": ["tests"]
+}

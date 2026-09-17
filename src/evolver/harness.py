@@ -16,6 +16,12 @@ from .runner import Runner
 
 
 @dataclass(frozen=True)
+class TaskSource:
+    clone_url: str
+    revision: str
+
+
+@dataclass(frozen=True)
 class TaskDefinition:
     directory: Path
     task_id: str
@@ -23,6 +29,7 @@ class TaskDefinition:
     max_commands: int
     acceptance_argv: tuple[str, ...] = ()
     protected_paths: tuple[str, ...] = ()
+    source: TaskSource | None = None
 
     @classmethod
     def load(cls, directory: Path) -> "TaskDefinition":
@@ -33,6 +40,16 @@ class TaskDefinition:
         phase = str(value["phase"])
         max_commands = int(value["max_commands"])
         protected_paths = tuple(str(item) for item in value.get("protected_paths", []))
+        source_value = value.get("source")
+        source = None
+        if source_value is not None:
+            if not isinstance(source_value, dict):
+                raise ValueError("Source must be an object")
+            clone_url = str(source_value.get("clone_url", ""))
+            revision = str(source_value.get("revision", ""))
+            if not clone_url or not re.fullmatch(r"[0-9a-f]{7,64}", revision):
+                raise ValueError("Source requires a clone URL and pinned hexadecimal revision")
+            source = TaskSource(clone_url, revision)
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", task_id):
             raise ValueError("Task id must be a lowercase hyphenated identifier")
         if not re.fullmatch(r"[a-z][a-z-]*", phase):
@@ -48,6 +65,7 @@ class TaskDefinition:
             max_commands=max_commands,
             acceptance_argv=tuple(str(item) for item in acceptance.get("argv", [])),
             protected_paths=protected_paths,
+            source=source,
         )
 
 
@@ -60,10 +78,20 @@ def discover_tasks(evals_root: Path, phase: str | None = None) -> list[TaskDefin
 
 
 def _snapshot(workspace: Path, paths: tuple[str, ...]) -> dict[str, bytes | None]:
-    return {
-        path: (workspace / path).read_bytes() if (workspace / path).is_file() else None
-        for path in paths
-    }
+    snapshot: dict[str, bytes | None] = {}
+    for path in paths:
+        candidate = workspace / path
+        if candidate.is_dir():
+            snapshot.update(
+                {
+                    str(child.relative_to(workspace)): child.read_bytes()
+                    for child in candidate.rglob("*")
+                    if child.is_file()
+                }
+            )
+        else:
+            snapshot[path] = candidate.read_bytes() if candidate.is_file() else None
+    return snapshot
 
 
 def _acceptance(
@@ -74,10 +102,9 @@ def _acceptance(
         if runner.runs_path.exists()
         else []
     )
+    after = _snapshot(workspace, definition.protected_paths)
     protected_changes = [
-        path
-        for path, original in before.items()
-        if ((workspace / path).read_bytes() if (workspace / path).is_file() else None) != original
+        path for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)
     ]
     if definition.acceptance_argv:
         try:
@@ -132,12 +159,24 @@ def run_task(
 ) -> TaskEvaluation:
     with tempfile.TemporaryDirectory(prefix=f"evolver-{definition.task_id}-") as temporary:
         workspace = Path(temporary)
-        shutil.copytree(
-            definition.directory,
-            workspace,
-            dirs_exist_ok=True,
-            ignore=shutil.ignore_patterns("task.json", "README.md"),
-        )
+        if definition.source:
+            subprocess.run(
+                ["git", "clone", "--quiet", definition.source.clone_url, str(workspace)],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "checkout", "--quiet", "--detach", definition.source.revision],
+                cwd=workspace,
+                check=True,
+            )
+            shutil.copy2(definition.directory / "objective.md", workspace / "objective.md")
+        else:
+            shutil.copytree(
+                definition.directory,
+                workspace,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("task.json", "README.md"),
+            )
         runner = Runner(workspace, model or OpenAIModel())
         before = _snapshot(workspace, definition.protected_paths)
         for _ in range(definition.max_commands):

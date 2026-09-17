@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -207,3 +208,45 @@ def test_checked_in_feature_benchmark_accepts_a_multi_file_feature(tmp_path: Pat
     )
 
     assert evaluation.gate_result == "pass"
+
+
+def test_source_task_uses_a_pinned_disposable_git_clone(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=target, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=target, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=target, check=True)
+    (target / "calc.py").write_text("def add(a, b):\n    return b\n", encoding="utf-8")
+    (target / "test_calc.py").write_text(
+        "import unittest\nfrom calc import add\n\n"
+        "class Tests(unittest.TestCase):\n"
+        "    def test_add(self): self.assertEqual(add(2, 3), 5)\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=target, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "broken calculator"], cwd=target, check=True)
+    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=target, text=True).strip()
+
+    task = tmp_path / "source-task"
+    task.mkdir()
+    (task / "objective.md").write_text("Repair the calculator\n", encoding="utf-8")
+    (task / "task.json").write_text(
+        json.dumps(
+            {
+                "id": "source-repair",
+                "phase": "complex",
+                "max_commands": 4,
+                "source": {"clone_url": str(target), "revision": revision},
+                "acceptance": {"argv": [sys.executable, "-m", "unittest", "-q"]},
+                "protected_paths": ["test_calc.py"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    evaluation = run_task(
+        TaskDefinition.load(task), tmp_path / "results", model=RepairModel(), evaluator=EvidenceEvaluator()
+    )
+
+    assert evaluation.gate_result == "pass"
+    assert "return b" in (target / "calc.py").read_text(encoding="utf-8")
