@@ -1,0 +1,7 @@
+{
+  "id": "low-stock-feature",
+  "phase": "mid-range",
+  "max_commands": 6,
+  "acceptance": {"argv": ["python3", "-m", "unittest", "-q"]},
+  "protected_paths": ["test_cli.py", "data_format.py"]
+}

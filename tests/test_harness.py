@@ -80,6 +80,50 @@ class TargetedRepairModel:
         ]
 
 
+class FeatureModel:
+    @property
+    def model_name(self) -> str:
+        return "fake-feature-model"
+
+    def create_plan(self, objective: str, repository_summary: str) -> Plan:
+        inventory = (
+            "from __future__ import annotations\n\n\n"
+            "def low_stock_items(inventory: dict[str, int], threshold: int) -> list[str]:\n"
+            "    return sorted(name for name, quantity in inventory.items() if quantity <= threshold)\n"
+        )
+        cli = (
+            "from __future__ import annotations\n\n"
+            "import argparse\n\n"
+            "from inventory import low_stock_items\n\n\n"
+            "INVENTORY = {\"adapter\": 2, \"sensor\": 9, \"wire\": 4}\n\n\n"
+            "def main(argv: list[str] | None = None) -> None:\n"
+            "    parser = argparse.ArgumentParser()\n"
+            "    parser.add_argument(\"--low-stock\", type=int)\n"
+            "    args = parser.parse_args(argv)\n"
+            "    if args.low_stock is None:\n"
+            "        print(\"Inventory: 3 items\")\n"
+            "        return\n"
+            "    print(\",\".join(low_stock_items(INVENTORY, args.low_stock)))\n\n\n"
+            "if __name__ == \"__main__\":\n"
+            "    main()\n"
+        )
+        return Plan(
+            objective,
+            (
+                Step("observe", "Run tests", Verification("exit_code_equals", "1")),
+                Step("domain", "Add domain behaviour", Verification("file_content_equals", inventory, "inventory.py")),
+                Step("cli", "Add CLI behaviour", Verification("file_content_equals", cli, "cli.py")),
+                Step("verify", "Run tests", Verification("exit_code_equals", "0")),
+            ),
+        )
+
+    def propose_command(self, step: Step, repository_summary: str) -> list[str]:
+        if step.id in {"observe", "verify"}:
+            return [sys.executable, "-m", "unittest", "-q"]
+        content = self.create_plan("", "").steps[1 if step.id == "domain" else 2].verification.expected
+        return [sys.executable, "-c", f"from pathlib import Path; Path('{step.id if step.id == 'cli' else 'inventory'}.py').write_text({content!r})"]
+
+
 def make_repair_task(tmp_path: Path) -> Path:
     task = tmp_path / "evals" / "mid-range" / "repair"
     task.mkdir(parents=True)
@@ -146,6 +190,19 @@ def test_checked_in_targeted_repair_benchmark_accepts_a_narrow_fix(tmp_path: Pat
         definition,
         tmp_path / "results",
         model=TargetedRepairModel(),
+        evaluator=EvidenceEvaluator(),
+    )
+
+    assert evaluation.gate_result == "pass"
+
+
+def test_checked_in_feature_benchmark_accepts_a_multi_file_feature(tmp_path: Path) -> None:
+    definition = TaskDefinition.load(Path("evals/mid-range/low-stock-feature"))
+
+    evaluation = run_task(
+        definition,
+        tmp_path / "results",
+        model=FeatureModel(),
         evaluator=EvidenceEvaluator(),
     )
 

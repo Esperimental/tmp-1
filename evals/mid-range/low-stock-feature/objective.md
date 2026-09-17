@@ -1,0 +1,1 @@
+Add a --low-stock THRESHOLD option to the inventory CLI. With the option, print the comma-separated item names whose quantities are at or below THRESHOLD, in alphabetical order. Preserve the current no-argument output. Keep domain selection logic out of the CLI, do not modify tests or unrelated data formatting code, and stop once local tests pass.
