@@ -57,6 +57,23 @@ def test_policy_rejects_critical_finding() -> None:
     assert not EvaluationPolicy().passes(result)
 
 
+def test_finding_without_confidence_uses_conservative_default() -> None:
+    result = evaluation(
+        "inventory",
+        findings=[
+            {
+                "severity": "minor",
+                "area": "testing",
+                "evidence": ["test-run-3"],
+                "description": "The reviewer omitted metadata.",
+                "recommendation": "Include confidence when available.",
+            }
+        ],
+    )
+
+    assert result.findings[0].confidence == 0.5
+
+
 def test_suite_report_lists_tasks_and_strength_profile() -> None:
     first = evaluation("inventory-repair", score=7)
     second = evaluation("feature-addition", score=6)

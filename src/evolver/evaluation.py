@@ -31,7 +31,7 @@ class Finding:
         severity = str(value["severity"])
         if severity not in SEVERITIES:
             raise ValueError(f"Unsupported finding severity: {severity}")
-        confidence = float(value["confidence"])
+        confidence = float(value.get("confidence", 0.5))
         if not 0 <= confidence <= 1:
             raise ValueError("Finding confidence must be between 0 and 1")
         evidence = tuple(str(item) for item in value.get("evidence", []))
