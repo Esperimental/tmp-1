@@ -181,6 +181,7 @@ def run_task(
 ) -> TaskEvaluation:
     with tempfile.TemporaryDirectory(prefix=f"evolver-{definition.task_id}-") as temporary:
         workspace = Path(temporary)
+        source_evidence: dict[str, str] = {}
         if definition.source:
             subprocess.run(
                 ["git", "clone", "--quiet", definition.source.clone_url, str(workspace)],
@@ -191,6 +192,16 @@ def run_task(
                 cwd=workspace,
                 check=True,
             )
+            actual_revision = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=workspace, text=True
+            ).strip()
+            if actual_revision != definition.source.revision:
+                raise RuntimeError("Checked-out source does not match the pinned revision")
+            source_evidence = {
+                "clone_url": definition.source.clone_url,
+                "expected_revision": definition.source.revision,
+                "actual_revision": actual_revision,
+            }
             shutil.copy2(definition.directory / "objective.md", workspace / "objective.md")
         else:
             shutil.copytree(
@@ -207,6 +218,8 @@ def run_task(
                 break
             runner.run_next(execute=True)
         gate, gate_evidence = _acceptance(definition, workspace, runner, before)
+        if source_evidence:
+            gate_evidence["source"] = source_evidence
         packet = build_task_packet(workspace, definition.task_id, gate, gate_evidence)
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / f"{definition.task_id}.evidence.json").write_text(

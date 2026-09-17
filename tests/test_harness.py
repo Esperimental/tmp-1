@@ -250,12 +250,15 @@ def test_source_task_uses_a_pinned_disposable_git_clone(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    output = tmp_path / "results"
     evaluation = run_task(
-        TaskDefinition.load(task), tmp_path / "results", model=RepairModel(), evaluator=EvidenceEvaluator()
+        TaskDefinition.load(task), output, model=RepairModel(), evaluator=EvidenceEvaluator()
     )
 
     assert evaluation.gate_result == "pass"
     assert "return b" in (target / "calc.py").read_text(encoding="utf-8")
+    evidence = json.loads((output / "source-repair.evidence.json").read_text(encoding="utf-8"))
+    assert evidence["acceptance_evidence"]["source"]["actual_revision"] == revision
 
 
 def test_protected_directory_snapshot_ignores_generated_python_cache(tmp_path: Path) -> None:
