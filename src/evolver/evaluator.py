@@ -71,7 +71,11 @@ def build_task_packet(
         "objective": (root / "objective.md").read_text(encoding="utf-8").strip(),
         "objective_gate": objective_gate or ("pass" if verified else "fail"),
         "plan": plan,
-        "proposal": json.loads((state / "proposal.json").read_text(encoding="utf-8")),
+        "proposal": (
+            json.loads((state / "proposal.json").read_text(encoding="utf-8"))
+            if (state / "proposal.json").exists()
+            else None
+        ),
         "trajectory": runs,
         "workspace_snapshot": workspace_snapshot(root),
         "test_results": {"command_verification_passed": verified},

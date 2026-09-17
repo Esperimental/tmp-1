@@ -82,6 +82,22 @@ def test_gate_allows_a_step_to_recover_after_a_failed_attempt(tmp_path: Path) ->
     assert build_task_packet(tmp_path, "recovery") ["objective_gate"] == "pass"
 
 
+def test_packet_allows_a_missing_proposal_after_a_failed_attempt(tmp_path: Path) -> None:
+    state = tmp_path / ".evolver"
+    state.mkdir()
+    (tmp_path / "objective.md").write_text("Fail safely\n", encoding="utf-8")
+    (state / "plan.json").write_text(
+        json.dumps({"objective": "Fail safely", "steps": [{"id": "work"}]}),
+        encoding="utf-8",
+    )
+    (state / "runs.jsonl").write_text(
+        json.dumps({"step_id": "work", "argv": ["false"], "verified": False}) + "\n",
+        encoding="utf-8",
+    )
+
+    assert build_task_packet(tmp_path, "failed-work")["proposal"] is None
+
+
 def test_evaluator_prompt_explicitly_detects_inefficiency_and_loops() -> None:
     assert "repeated actions" in EVALUATOR_INSTRUCTIONS
     assert "no-progress" in EVALUATOR_INSTRUCTIONS
