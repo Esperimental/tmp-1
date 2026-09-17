@@ -13,15 +13,17 @@ class Verification:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Verification":
         kind = str(value["kind"])
-        if kind not in {"stdout_equals", "file_content_equals"}:
+        if kind not in {"stdout_equals", "stdout_equals_file", "file_content_equals"}:
             raise ValueError(f"Unsupported verification kind: {kind}")
         path = value.get("path")
-        if kind == "file_content_equals" and not path:
-            raise ValueError("file_content_equals requires path")
-        return cls(kind=kind, expected=str(value["expected"]), path=path)
+        if kind in {"stdout_equals_file", "file_content_equals"} and not path:
+            raise ValueError(f"{kind} requires path")
+        return cls(kind=kind, expected=str(value.get("expected", "")), path=path)
 
     def to_dict(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"kind": self.kind, "expected": self.expected}
+        result: dict[str, Any] = {"kind": self.kind}
+        if self.kind != "stdout_equals_file":
+            result["expected"] = self.expected
         if self.path is not None:
             result["path"] = self.path
         return result

@@ -108,3 +108,30 @@ def test_changed_objective_requires_review(tmp_path: Path) -> None:
         assert "objective.md changed" in str(error)
     else:
         raise AssertionError("Expected changed objective to require review")
+
+
+def test_stdout_can_be_verified_against_existing_file(tmp_path: Path) -> None:
+    class FileModel:
+        def create_plan(self, objective: str, repository_summary: str) -> Plan:
+            return Plan(
+                objective=objective,
+                steps=(
+                    Step(
+                        id="read-file",
+                        instruction="Print input.txt",
+                        verification=Verification(
+                            kind="stdout_equals_file", expected="", path="input.txt"
+                        ),
+                    ),
+                ),
+            )
+
+        def propose_command(self, step: Step, repository_summary: str) -> list[str]:
+            return ["cat", "input.txt"]
+
+    (tmp_path / "objective.md").write_text("Read the file\n", encoding="utf-8")
+    (tmp_path / "input.txt").write_text("content with newline\n", encoding="utf-8")
+
+    _, verified = Runner(tmp_path, FileModel()).run_next(execute=True)
+
+    assert verified is True

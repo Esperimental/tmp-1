@@ -46,8 +46,9 @@ class OpenAIModel:
     def create_plan(self, objective: str, repository_summary: str) -> Plan:
         value = self._ask(
             "You are a conservative planner. Return JSON only. Make the fewest bounded "
-            "steps possible. Allowed verification kinds are stdout_equals and "
-            "file_content_equals. Schema: {objective:string,steps:[{id:string," 
+            "steps possible. Allowed verification kinds are stdout_equals, stdout_equals_file "
+            "and file_content_equals. Use stdout_equals_file with path when output must match "
+            "an existing file. Schema: {objective:string,steps:[{id:string,"
             "instruction:string,verification:{kind:string,expected:string,path?:string}}]}.",
             f"Objective:\n{objective}\n\nCurrent repository state:\n{repository_summary}",
         )

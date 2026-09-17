@@ -121,6 +121,14 @@ class Runner:
             exit_code = None
         if step.verification.kind == "stdout_equals":
             verified = exit_code == 0 and stdout.rstrip("\n") == step.verification.expected.rstrip("\n")
+        elif step.verification.kind == "stdout_equals_file":
+            source = (self.root / str(step.verification.path)).resolve()
+            verified = (
+                self.root in source.parents
+                and source.is_file()
+                and exit_code == 0
+                and stdout == source.read_text(encoding="utf-8")
+            )
         else:
             verified = exit_code == 0 and self.status(step).complete
         record = {
