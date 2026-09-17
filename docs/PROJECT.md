@@ -140,6 +140,9 @@ Evaluation will eventually have multiple layers:
 - direct parent-versus-descendant trials;
 - human review while promotion remains experimental.
 
+The objective gate, trajectory diagnostics, loop detection and report contract
+are defined in [`EVALUATION.md`](EVALUATION.md).
+
 Evaluation criteria must not be freely rewritten by the same candidate being
 evaluated. The evolutionary system can propose improved evals, but those changes
 must themselves be reviewed and tested.

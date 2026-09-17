@@ -4,6 +4,8 @@
 
 The project vision, stable principles, current scope and evolutionary roadmap
 are maintained in [`docs/PROJECT.md`](docs/PROJECT.md).
+The evaluation and diagnostic contract is in
+[`docs/EVALUATION.md`](docs/EVALUATION.md).
 
 This is the smallest useful experiment for a restartable coding agent. It reads
 an objective, asks a model for a structured plan, compares that plan with prior
