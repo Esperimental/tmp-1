@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .evaluation import EvaluationPolicy, EvaluationSuiteReport, TaskEvaluation
+from .evaluation import DIMENSIONS, EvaluationPolicy, EvaluationSuiteReport, Finding, TaskEvaluation
 from .evaluator import OpenAIEvaluator, build_task_packet
 from .model import AgentModel, OpenAIModel
 from .runner import Runner
@@ -233,7 +233,31 @@ def run_task(
 
 
 def run_tasks(definitions: list[TaskDefinition], output_dir: Path) -> EvaluationSuiteReport:
-    evaluations = tuple(run_task(item, output_dir) for item in definitions)
-    suite = EvaluationSuiteReport(evaluations, EvaluationPolicy())
+    evaluations: list[TaskEvaluation] = []
+    for definition in definitions:
+        try:
+            evaluations.append(run_task(definition, output_dir))
+        except Exception as error:
+            evaluation = TaskEvaluation(
+                task_id=definition.task_id,
+                gate_result="error",
+                scores={name: 0.0 for name in DIMENSIONS},
+                findings=(
+                    Finding(
+                        severity="critical",
+                        area="execution",
+                        evidence=(type(error).__name__,),
+                        description=str(error),
+                        recommendation="Inspect the recorded task error and correct the harness or model protocol.",
+                        confidence=1.0,
+                    ),
+                ),
+            )
+            output_dir.mkdir(parents=True, exist_ok=True)
+            (output_dir / f"{definition.task_id}.json").write_text(
+                json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
+            )
+            evaluations.append(evaluation)
+    suite = EvaluationSuiteReport(tuple(evaluations), EvaluationPolicy())
     (output_dir / "report.md").write_text(suite.to_markdown(), encoding="utf-8")
     return suite

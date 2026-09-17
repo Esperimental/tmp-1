@@ -7,7 +7,7 @@ from pathlib import Path
 
 from evolver.domain import Plan, Step, Verification
 from evolver.evaluation import DIMENSIONS, TaskEvaluation
-from evolver.harness import TaskDefinition, _snapshot, discover_tasks, run_task
+from evolver.harness import TaskDefinition, _snapshot, discover_tasks, run_task, run_tasks
 
 
 class RepairModel:
@@ -270,3 +270,16 @@ def test_protected_directory_snapshot_ignores_generated_python_cache(tmp_path: P
     (cache / "test_example.pyc").write_bytes(b"generated")
 
     assert _snapshot(tmp_path, ("tests",)) == {"tests/test_example.py": b"pass\n"}
+
+
+def test_suite_records_each_task_error_and_continues(tmp_path: Path) -> None:
+    definitions = [
+        TaskDefinition(tmp_path / "missing-one", "missing-one", "simple", 1),
+        TaskDefinition(tmp_path / "missing-two", "missing-two", "simple", 1),
+    ]
+
+    report = run_tasks(definitions, tmp_path / "results")
+
+    assert [task.gate_result for task in report.tasks] == ["error", "error"]
+    assert (tmp_path / "results" / "missing-one.json").exists()
+    assert (tmp_path / "results" / "missing-two.json").exists()

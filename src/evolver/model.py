@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Protocol
+from typing import Any, Protocol
 
 from openai import OpenAI
 
@@ -13,6 +13,10 @@ class AgentModel(Protocol):
     def create_plan(self, objective: str, repository_summary: str) -> Plan: ...
 
     def propose_command(self, step: Step, repository_summary: str) -> list[str]: ...
+
+
+class ModelResponseError(ValueError):
+    """The model did not return the required structured response after retry."""
 
 
 def _json_object(text: str) -> dict:
@@ -27,8 +31,8 @@ def _json_object(text: str) -> dict:
 
 
 class OpenAIModel:
-    def __init__(self, model: str | None = None) -> None:
-        self._client = OpenAI()
+    def __init__(self, model: str | None = None, client: Any | None = None) -> None:
+        self._client = client or OpenAI()
         self._model = model or os.environ.get("EVOLVER_MODEL", "gpt-5.6-luna")
 
     @property
@@ -36,12 +40,25 @@ class OpenAIModel:
         return self._model
 
     def _ask(self, instructions: str, prompt: str) -> dict:
-        response = self._client.responses.create(
-            model=self._model,
-            instructions=instructions,
-            input=prompt,
-        )
-        return _json_object(response.output_text)
+        retry_prompt = prompt
+        for attempt in range(2):
+            response = self._client.responses.create(
+                model=self._model,
+                instructions=instructions,
+                input=retry_prompt,
+            )
+            try:
+                return _json_object(response.output_text)
+            except (ValueError, json.JSONDecodeError) as error:
+                if attempt:
+                    raise ModelResponseError(
+                        f"Invalid structured model response after one retry: {error}"
+                    ) from error
+                retry_prompt = (
+                    f"{prompt}\n\nYour previous response was invalid structured JSON: {error}. "
+                    "Return exactly one JSON object matching the requested schema, with no prose or code fence."
+                )
+        raise AssertionError("unreachable")
 
     def create_plan(self, objective: str, repository_summary: str) -> Plan:
         value = self._ask(
