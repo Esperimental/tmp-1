@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .domain import Plan, Step
 from .model import AgentModel
+from .workspace import workspace_summary
 
 
 @dataclass(frozen=True)
@@ -28,22 +29,10 @@ class Runner:
         self.proposal_path = self.state_dir / "proposal.json"
 
     def repository_summary(self) -> str:
-        files = sorted(
-            path
-            for path in self.root.rglob("*")
-            if path.is_file()
-            and not any(part.startswith(".") for part in path.relative_to(self.root).parts)
-            and ".venv" not in path.parts
-        )
-        sections = ["Files:", *[str(path.relative_to(self.root)) for path in files[:200]]]
-        readable = {".py", ".json", ".txt", ".md", ".toml", ".yaml", ".yml"}
-        for path in files:
-            if path.suffix in readable and path.stat().st_size <= 20_000:
-                sections.extend(
-                    [f"\n--- {path.relative_to(self.root)} ---", path.read_text(encoding="utf-8")]
-                )
+        sections = [workspace_summary(self.root)]
         if self.runs_path.exists():
-            sections.extend(["\nPrior command evidence:", self.runs_path.read_text(encoding="utf-8")])
+            evidence = self.runs_path.read_text(encoding="utf-8")[-6_000:]
+            sections.extend(["\nPrior command evidence:", evidence])
         return "\n".join(sections)
 
     def load_or_create_plan(self) -> Plan:

@@ -7,8 +7,9 @@ from typing import Any
 
 from openai import OpenAI
 
-from .evaluation import DIMENSIONS, EvaluationPolicy, EvaluationSuiteReport, TaskEvaluation
+from .evaluation import DIMENSIONS, TaskEvaluation
 from .model import _json_object
+from .workspace import workspace_snapshot
 
 
 EVALUATOR_INSTRUCTIONS = """You are an independent evaluator of an autonomous coding agent.
@@ -73,14 +74,7 @@ def build_task_packet(
         "plan": plan,
         "proposal": json.loads((state / "proposal.json").read_text(encoding="utf-8")),
         "trajectory": runs,
-        "workspace_files": {
-            str(path.relative_to(root)): path.read_text(encoding="utf-8")
-            for path in sorted(root.rglob("*"))
-            if path.is_file()
-            and ".evolver" not in path.parts
-            and path.name != "objective.md"
-            and path.suffix in {".py", ".json", ".txt", ".md", ".toml", ".yaml", ".yml"}
-        },
+        "workspace_snapshot": workspace_snapshot(root),
         "test_results": {"command_verification_passed": verified},
         "acceptance_evidence": gate_evidence or {},
         "mechanical_metrics": {
@@ -109,30 +103,3 @@ class OpenAIEvaluator:
         value["gate_result"] = packet["objective_gate"]
         value["metrics"] = packet["mechanical_metrics"]
         return TaskEvaluation.from_dict(value)
-
-
-def evaluate_task(root: Path, task_id: str, output_path: Path) -> TaskEvaluation:
-    packet = build_task_packet(root, task_id)
-    evaluation = OpenAIEvaluator().evaluate(packet)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
-    )
-    return evaluation
-
-
-def report_suite(input_dir: Path, output_path: Path) -> EvaluationSuiteReport:
-    tasks = tuple(
-        TaskEvaluation.from_dict(json.loads(path.read_text(encoding="utf-8")))
-        for path in sorted(input_dir.glob("*.json"))
-        if not path.name.endswith(".evidence.json")
-    )
-    suite = EvaluationSuiteReport(tasks, EvaluationPolicy())
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(suite.to_markdown(), encoding="utf-8")
-    return suite
-
-
-# Retained for API compatibility with the original single-task experiment.
-def build_smoke_packet(root: Path) -> dict[str, Any]:
-    return build_task_packet(root, "hello-world-smoke")

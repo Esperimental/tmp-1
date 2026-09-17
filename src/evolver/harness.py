@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -28,13 +29,25 @@ class TaskDefinition:
         directory = directory.resolve()
         value = json.loads((directory / "task.json").read_text(encoding="utf-8"))
         acceptance = value.get("acceptance", {})
+        task_id = str(value["id"])
+        phase = str(value["phase"])
+        max_commands = int(value["max_commands"])
+        protected_paths = tuple(str(item) for item in value.get("protected_paths", []))
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", task_id):
+            raise ValueError("Task id must be a lowercase hyphenated identifier")
+        if not re.fullmatch(r"[a-z][a-z-]*", phase):
+            raise ValueError("Phase must be a lowercase hyphenated identifier")
+        if max_commands < 1:
+            raise ValueError("max_commands must be at least one")
+        if any(Path(path).is_absolute() or ".." in Path(path).parts for path in protected_paths):
+            raise ValueError("Protected paths must stay inside the task workspace")
         return cls(
             directory=directory,
-            task_id=str(value["id"]),
-            phase=str(value["phase"]),
-            max_commands=int(value["max_commands"]),
+            task_id=task_id,
+            phase=phase,
+            max_commands=max_commands,
             acceptance_argv=tuple(str(item) for item in acceptance.get("argv", [])),
-            protected_paths=tuple(str(item) for item in value.get("protected_paths", [])),
+            protected_paths=protected_paths,
         )
 
 
@@ -67,23 +80,34 @@ def _acceptance(
         if ((workspace / path).read_bytes() if (workspace / path).is_file() else None) != original
     ]
     if definition.acceptance_argv:
-        result = subprocess.run(
-            definition.acceptance_argv,
-            cwd=workspace,
-            env=runner.command_environment(),
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        accepted = result.returncode == 0
-        evidence: dict[str, Any] = {
-            "argv": list(definition.acceptance_argv),
-            "exit_code": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "protected_changes": protected_changes,
-        }
+        try:
+            result = subprocess.run(
+                definition.acceptance_argv,
+                cwd=workspace,
+                env=runner.command_environment(),
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            accepted = result.returncode == 0
+            evidence: dict[str, Any] = {
+                "argv": list(definition.acceptance_argv),
+                "exit_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "protected_changes": protected_changes,
+            }
+        except subprocess.TimeoutExpired as error:
+            accepted = False
+            evidence = {
+                "argv": list(definition.acceptance_argv),
+                "exit_code": None,
+                "stdout": error.stdout or "",
+                "stderr": error.stderr or "",
+                "timeout": True,
+                "protected_changes": protected_changes,
+            }
     else:
         records = [json.loads(line) for line in runs if line.strip()]
         plan = runner.load_or_create_plan()
