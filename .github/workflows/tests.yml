@@ -60,26 +60,7 @@ jobs:
       - name: Run and evaluate simple task suite
         run: |
           rm -rf .evolver
-          mkdir -p .evolver/evaluations
-          evaluation_dir="$PWD/.evolver/evaluations"
-          for task in evals/simple/*; do
-            task_id="$(basename "$task")"
-            work_dir="$(mktemp -d)"
-            cp -R "$task/." "$work_dir/"
-            echo "::group::Simple task: $task_id"
-            (
-              cd "$work_dir"
-              evolver run
-              evolver status
-              evolver evaluate-task \
-                --task-id "$task_id" \
-                --output "$evaluation_dir/$task_id.json"
-            )
-            echo "::endgroup::"
-          done
-          evolver report-suite \
-            --input-dir .evolver/evaluations \
-            --output .evolver/evaluations/report.md
+          evolver eval phase simple --output-dir .evolver/evaluations
 
       - name: Show sanitized evidence
         if: always()
@@ -104,12 +85,44 @@ jobs:
           if-no-files-found: warn
 
   mid-range-ai-tests:
-    name: mid-range-ai-tests (reserved)
     needs: simple-ai-tests
-    if: ${{ false }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      EVOLVER_MODEL: gpt-5.6-luna
+      EVOLVER_EVAL_MODEL: gpt-5.6-luna
     steps:
-      - run: echo "Reserved until the simple phase is consistently reliable."
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: pip install -e '.[dev]'
+
+      - name: Run isolated mid-range task
+        run: evolver eval phase mid-range --output-dir .evolver/evaluations
+
+      - name: Show mid-range report
+        if: always()
+        run: |
+          if [ -f .evolver/evaluations/report.md ]; then
+            cat .evolver/evaluations/report.md
+          fi
+
+      - name: Upload mid-range evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evolver-mid-range-evidence
+          path: .evolver/
+          include-hidden-files: true
+          if-no-files-found: warn
 
   complex-ai-tests:
     name: complex-ai-tests (reserved)

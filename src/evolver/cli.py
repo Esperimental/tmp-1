@@ -20,11 +20,40 @@ def _parser() -> argparse.ArgumentParser:
     report = subcommands.add_parser("report-suite", help="Aggregate task evaluations")
     report.add_argument("--input-dir", type=Path, required=True)
     report.add_argument("--output", type=Path, required=True)
+    evaluation = subcommands.add_parser("eval", help="Run one task, one phase, or all tasks")
+    evaluation_commands = evaluation.add_subparsers(dest="eval_command", required=True)
+    task = evaluation_commands.add_parser("task", help="Run one isolated task")
+    task.add_argument("path", type=Path)
+    phase = evaluation_commands.add_parser("phase", help="Run one evaluation phase")
+    phase.add_argument("name")
+    phase.add_argument("--evals-root", type=Path, default=Path("evals"))
+    all_tasks = evaluation_commands.add_parser("all", help="Run every implemented task")
+    all_tasks.add_argument("--evals-root", type=Path, default=Path("evals"))
+    for command in (task, phase, all_tasks):
+        command.add_argument(
+            "--output-dir", type=Path, default=Path(".evolver/evaluations")
+        )
     return parser
 
 
 def main() -> None:
     args = _parser().parse_args()
+    if args.command == "eval":
+        from .harness import TaskDefinition, discover_tasks, run_tasks
+
+        if args.eval_command == "task":
+            definitions = [TaskDefinition.load(args.path)]
+        elif args.eval_command == "phase":
+            definitions = discover_tasks(args.evals_root, args.name)
+        else:
+            definitions = discover_tasks(args.evals_root)
+        if not definitions:
+            raise SystemExit("No matching evaluation tasks found")
+        suite = run_tasks(definitions, args.output_dir.resolve())
+        print(suite.to_markdown())
+        if not suite.passes:
+            raise SystemExit(1)
+        return
     if args.command == "evaluate-task":
         from .evaluator import evaluate_task
 

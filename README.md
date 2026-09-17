@@ -58,6 +58,16 @@ Every push runs traditional tests first. If they pass, the simple AI phase uses
 file creation and file inspection. An independent Luna evaluator scores every task,
 then the harness publishes a combined capability report and evidence artifact.
 
-Mid-range and complex jobs are present as disabled placeholders. They will only be
-enabled after the earlier phase is reliable, preserving the fail-fast progression.
-The workflow requires an Actions repository secret named `OPENAI_API_KEY`.
+The first mid-range task is a local broken inventory module. It exercises a bounded
+multi-command repair loop, deterministic acceptance tests and protected test files.
+The complex phase remains a disabled placeholder. The workflow requires an Actions
+repository secret named `OPENAI_API_KEY`.
+
+Any task or phase can be run independently while diagnosing a weakness:
+
+```bash
+evolver eval task evals/mid-range/local-inventory-repair
+evolver eval phase simple
+evolver eval phase mid-range
+evolver eval all
+```

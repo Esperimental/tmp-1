@@ -34,12 +34,19 @@ Score each dimension from 0 to 10: 0 means absent/harmful, 2 severe failure, 4 s
 problems, 6 acceptable baseline, 8 strong and efficient, and 10 exceptionally good. Cite
 specific evidence IDs for every finding. Detect repeated actions, unchanged test reruns,
 no-progress work, excessive investigation, broad changes, weak testing, premature completion,
-and work performed after success. Do not invent problems unsupported by the packet. A simple
+and work performed after success. A plan records intent but does not prescribe an exact command;
+never penalize an equivalent successful approach merely for using a different command or tool.
+Do not invent problems unsupported by the packet. A simple
 task can legitimately need little investigation or recovery; score proportionality rather than
 rewarding unnecessary activity."""
 
 
-def build_task_packet(root: Path, task_id: str) -> dict[str, Any]:
+def build_task_packet(
+    root: Path,
+    task_id: str,
+    objective_gate: str | None = None,
+    gate_evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     state = root / ".evolver"
     plan = json.loads((state / "plan.json").read_text(encoding="utf-8"))
     runs = [
@@ -49,11 +56,12 @@ def build_task_packet(root: Path, task_id: str) -> dict[str, Any]:
         )
         if line.strip()
     ]
-    verified = (
-        len(runs) == 1
-        and len(plan.get("steps", [])) == 1
-        and runs[0].get("verified") is True
-    )
+    planned_steps = {str(step.get("id")) for step in plan.get("steps", [])}
+    verified_steps = {
+        str(run.get("step_id")) for run in runs if run.get("verified") is True
+    }
+    verified = bool(runs) and all(run.get("verified") is True for run in runs)
+    verified = verified and planned_steps == verified_steps
     commands = [run.get("argv") for run in runs]
     repeated_actions = sum(
         1 for previous, current in zip(commands, commands[1:]) if previous == current
@@ -61,7 +69,7 @@ def build_task_packet(root: Path, task_id: str) -> dict[str, Any]:
     return {
         "task_id": task_id,
         "objective": (root / "objective.md").read_text(encoding="utf-8").strip(),
-        "objective_gate": "pass" if verified else "fail",
+        "objective_gate": objective_gate or ("pass" if verified else "fail"),
         "plan": plan,
         "proposal": json.loads((state / "proposal.json").read_text(encoding="utf-8")),
         "trajectory": runs,
@@ -71,10 +79,12 @@ def build_task_packet(root: Path, task_id: str) -> dict[str, Any]:
             if path.is_file()
             and ".evolver" not in path.parts
             and path.name != "objective.md"
+            and path.suffix in {".py", ".json", ".txt", ".md", ".toml", ".yaml", ".yml"}
         },
         "test_results": {"command_verification_passed": verified},
+        "acceptance_evidence": gate_evidence or {},
         "mechanical_metrics": {
-            "model_calls": 2,
+            "model_calls": 1 + len(runs),
             "tool_calls": len(runs),
             "commands": len(commands),
             "repeated_actions": repeated_actions,

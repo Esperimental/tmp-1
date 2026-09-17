@@ -45,10 +45,14 @@ The quality pipeline grows in ordered phases:
 3. **Mid-range AI tasks** will require several commands, inspection and basic recovery.
 4. **Complex AI tasks** will exercise realistic multi-step workflows, mistakes and recovery.
 
-A phase only runs after the previous phase passes. Mid-range and complex jobs currently exist
-as disabled placeholders so their contracts can evolve from observed simple-task evidence.
+A phase only runs after the previous phase passes. The first mid-range task is enabled; the
+complex job remains a disabled placeholder so its contract can evolve from observed evidence.
 All tasks inside an enabled phase receive individual objective gates and scorecards; the phase
 passes only when every task satisfies policy.
+
+Tasks are also independently addressable through `evolver eval task <path>`. A developer can
+iterate on a single isolated regression without paying to run unrelated model evaluations,
+then rely on the ordered CI pipeline to reveal whether the improvement transfers upward.
 
 ## Runtime guards
 

@@ -1,0 +1,1 @@
+A small local inventory module is broken. Run its tests to observe the failure, diagnose and repair the implementation without modifying the tests, rerun appropriate verification, and stop when the project is correct. Keep the change focused.

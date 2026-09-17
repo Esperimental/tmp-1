@@ -1,0 +1,7 @@
+{
+  "id": "local-inventory-repair",
+  "phase": "mid-range",
+  "max_commands": 5,
+  "acceptance": {"argv": ["python3", "-m", "unittest", "-q"]},
+  "protected_paths": ["test_inventory.py"]
+}

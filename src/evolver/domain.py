@@ -13,7 +13,12 @@ class Verification:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Verification":
         kind = str(value["kind"])
-        if kind not in {"stdout_equals", "stdout_equals_file", "file_content_equals"}:
+        if kind not in {
+            "stdout_equals",
+            "stdout_equals_file",
+            "file_content_equals",
+            "exit_code_equals",
+        }:
             raise ValueError(f"Unsupported verification kind: {kind}")
         path = value.get("path")
         if kind in {"stdout_equals_file", "file_content_equals"} and not path:

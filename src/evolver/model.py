@@ -46,8 +46,8 @@ class OpenAIModel:
     def create_plan(self, objective: str, repository_summary: str) -> Plan:
         value = self._ask(
             "You are a conservative planner. Return JSON only. Make the fewest bounded "
-            "steps possible. Allowed verification kinds are stdout_equals, stdout_equals_file "
-            "and file_content_equals. Use stdout_equals_file with path when output must match "
+            "steps possible. Allowed verification kinds are stdout_equals, stdout_equals_file, "
+            "file_content_equals and exit_code_equals. Use stdout_equals_file with path when output must match "
             "an existing file. Schema: {objective:string,steps:[{id:string,"
             "instruction:string,verification:{kind:string,expected:string,path?:string}}]}.",
             f"Objective:\n{objective}\n\nCurrent repository state:\n{repository_summary}",
@@ -60,7 +60,7 @@ class OpenAIModel:
             "Return JSON only with schema {argv:[string,...]}. Propose one direct process "
             "invocation. Shell syntax, redirection, pipes and command chaining are unavailable. "
             "Do not use a shell wrapper such as sh -c or bash -c.",
-            f"Step:\n{json.dumps(step.to_dict())}\n\nRepository state:\n{repository_summary}",
+            f"Step:\n{json.dumps(step.to_dict())}\n\nRepository state and prior evidence:\n{repository_summary}",
         )
         argv = value.get("argv")
         if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
