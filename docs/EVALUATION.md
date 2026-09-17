@@ -36,6 +36,20 @@ Possible gate results are:
 Qualitative review may explain a gate result but cannot change an objective
 failure into a pass.
 
+## Fail-fast evaluation phases
+
+The quality pipeline grows in ordered phases:
+
+1. **Traditional tests** validate Evolver itself without paid model calls.
+2. **Simple AI tasks** require exactly one command and test isolated capabilities.
+3. **Mid-range AI tasks** will require several commands, inspection and basic recovery.
+4. **Complex AI tasks** will exercise realistic multi-step workflows, mistakes and recovery.
+
+A phase only runs after the previous phase passes. Mid-range and complex jobs currently exist
+as disabled placeholders so their contracts can evolve from observed simple-task evidence.
+All tasks inside an enabled phase receive individual objective gates and scorecards; the phase
+passes only when every task satisfies policy.
+
 ## Runtime guards
 
 Some failures should be stopped during execution rather than discovered later:

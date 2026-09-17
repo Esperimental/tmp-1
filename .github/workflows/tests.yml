@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  tests:
+  traditional-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,9 +28,9 @@ jobs:
       - name: Run tests
         run: pytest -v
 
-  live-smoke-eval:
+  simple-ai-tests:
     if: github.event_name != 'pull_request'
-    needs: tests
+    needs: traditional-tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -57,22 +57,34 @@ jobs:
             exit 1
           fi
 
-      - name: Start from unreconciled objective
-        run: rm -rf .evolver
-
-      - name: Run live Luna smoke task
-        run: evolver run
-
-      - name: Verify restart reconciliation
-        run: evolver status
-
-      - name: Run independent model evaluation
-        run: evolver evaluate-smoke
+      - name: Run and evaluate simple task suite
+        run: |
+          rm -rf .evolver
+          mkdir -p .evolver/evaluations
+          evaluation_dir="$PWD/.evolver/evaluations"
+          for task in evals/simple/*; do
+            task_id="$(basename "$task")"
+            work_dir="$(mktemp -d)"
+            cp -R "$task/." "$work_dir/"
+            echo "::group::Simple task: $task_id"
+            (
+              cd "$work_dir"
+              evolver run
+              evolver status
+              evolver evaluate-task \
+                --task-id "$task_id" \
+                --output "$evaluation_dir/$task_id.json"
+            )
+            echo "::endgroup::"
+          done
+          evolver report-suite \
+            --input-dir .evolver/evaluations \
+            --output .evolver/evaluations/report.md
 
       - name: Show sanitized evidence
         if: always()
         run: |
-          for file in .evolver/plan.json .evolver/proposal.json .evolver/runs.jsonl .evolver/evaluations/hello-world-smoke.json .evolver/evaluations/report.md; do
+          for file in .evolver/evaluations/*.json .evolver/evaluations/report.md; do
             if [ -f "$file" ]; then
               echo "$file:"
               case "$file" in
@@ -90,3 +102,19 @@ jobs:
           path: .evolver/
           include-hidden-files: true
           if-no-files-found: warn
+
+  mid-range-ai-tests:
+    name: mid-range-ai-tests (reserved)
+    needs: simple-ai-tests
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Reserved until the simple phase is consistently reliable."
+
+  complex-ai-tests:
+    name: complex-ai-tests (reserved)
+    needs: mid-range-ai-tests
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Reserved until the mid-range phase is established."

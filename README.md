@@ -51,9 +51,13 @@ evolver status
 Persistent state is stored under `.evolver/`. Do not put credentials in the
 objective or generated state.
 
-## Live GitHub experiment
+## Live GitHub evaluation
 
-The `Live agent` workflow makes real API calls using `gpt-5.6-luna`, executes
-the generated command, verifies it, checks restart reconciliation, and uploads
-the `.evolver` evidence. It requires an Actions repository secret named
-`OPENAI_API_KEY` and is started manually from the Actions tab.
+Every push runs traditional tests first. If they pass, the simple AI phase uses
+`gpt-5.6-luna` for four isolated one-command tasks: exact output, argument handling,
+file creation and file inspection. An independent Luna evaluator scores every task,
+then the harness publishes a combined capability report and evidence artifact.
+
+Mid-range and complex jobs are present as disabled placeholders. They will only be
+enabled after the earlier phase is reliable, preserving the fail-fast progression.
+The workflow requires an Actions repository secret named `OPENAI_API_KEY`.

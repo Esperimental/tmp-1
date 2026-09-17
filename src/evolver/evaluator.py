@@ -39,8 +39,9 @@ task can legitimately need little investigation or recovery; score proportionali
 rewarding unnecessary activity."""
 
 
-def build_smoke_packet(root: Path) -> dict[str, Any]:
+def build_task_packet(root: Path, task_id: str) -> dict[str, Any]:
     state = root / ".evolver"
+    plan = json.loads((state / "plan.json").read_text(encoding="utf-8"))
     runs = [
         {"event_id": f"run-{index}", **json.loads(line)}
         for index, line in enumerate(
@@ -48,19 +49,29 @@ def build_smoke_packet(root: Path) -> dict[str, Any]:
         )
         if line.strip()
     ]
-    verified = bool(runs) and all(run.get("verified") is True for run in runs)
+    verified = (
+        len(runs) == 1
+        and len(plan.get("steps", [])) == 1
+        and runs[0].get("verified") is True
+    )
     commands = [run.get("argv") for run in runs]
     repeated_actions = sum(
         1 for previous, current in zip(commands, commands[1:]) if previous == current
     )
     return {
-        "task_id": "hello-world-smoke",
+        "task_id": task_id,
         "objective": (root / "objective.md").read_text(encoding="utf-8").strip(),
         "objective_gate": "pass" if verified else "fail",
-        "plan": json.loads((state / "plan.json").read_text(encoding="utf-8")),
+        "plan": plan,
         "proposal": json.loads((state / "proposal.json").read_text(encoding="utf-8")),
         "trajectory": runs,
-        "final_diff": "No repository change was required for this stdout-only smoke task.",
+        "workspace_files": {
+            str(path.relative_to(root)): path.read_text(encoding="utf-8")
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+            and ".evolver" not in path.parts
+            and path.name != "objective.md"
+        },
         "test_results": {"command_verification_passed": verified},
         "mechanical_metrics": {
             "model_calls": 2,
@@ -90,15 +101,27 @@ class OpenAIEvaluator:
         return TaskEvaluation.from_dict(value)
 
 
-def evaluate_smoke(root: Path) -> tuple[TaskEvaluation, str, list[str]]:
-    packet = build_smoke_packet(root)
+def evaluate_task(root: Path, task_id: str, output_path: Path) -> TaskEvaluation:
+    packet = build_task_packet(root, task_id)
     evaluation = OpenAIEvaluator().evaluate(packet)
-    policy = EvaluationPolicy()
-    report = EvaluationSuiteReport((evaluation,), policy).to_markdown()
-    output = root / ".evolver" / "evaluations"
-    output.mkdir(parents=True, exist_ok=True)
-    (output / "hello-world-smoke.json").write_text(
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
         json.dumps(evaluation.to_dict(), indent=2) + "\n", encoding="utf-8"
     )
-    (output / "report.md").write_text(report, encoding="utf-8")
-    return evaluation, report, policy.failures(evaluation)
+    return evaluation
+
+
+def report_suite(input_dir: Path, output_path: Path) -> EvaluationSuiteReport:
+    tasks = tuple(
+        TaskEvaluation.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        for path in sorted(input_dir.glob("*.json"))
+    )
+    suite = EvaluationSuiteReport(tasks, EvaluationPolicy())
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(suite.to_markdown(), encoding="utf-8")
+    return suite
+
+
+# Retained for API compatibility with the original single-task experiment.
+def build_smoke_packet(root: Path) -> dict[str, Any]:
+    return build_task_packet(root, "hello-world-smoke")

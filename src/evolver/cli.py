@@ -14,21 +14,30 @@ def _parser() -> argparse.ArgumentParser:
     run = subcommands.add_parser("run", help="Execute one incomplete step")
     run.add_argument("--preview", action="store_true", help="Persist and show argv without executing")
     subcommands.add_parser("status", help="Reconcile the saved plan with current state")
-    subcommands.add_parser("evaluate-smoke", help="Independently score the recorded smoke task")
+    evaluate = subcommands.add_parser("evaluate-task", help="Independently score one task")
+    evaluate.add_argument("--task-id", required=True)
+    evaluate.add_argument("--output", type=Path, required=True)
+    report = subcommands.add_parser("report-suite", help="Aggregate task evaluations")
+    report.add_argument("--input-dir", type=Path, required=True)
+    report.add_argument("--output", type=Path, required=True)
     return parser
 
 
 def main() -> None:
     args = _parser().parse_args()
-    if args.command == "evaluate-smoke":
-        from .evaluator import evaluate_smoke
+    if args.command == "evaluate-task":
+        from .evaluator import evaluate_task
 
-        evaluation, report, failures = evaluate_smoke(Path.cwd())
-        print(report)
-        if failures:
-            print("Policy failures: " + "; ".join(failures))
+        evaluation = evaluate_task(Path.cwd(), args.task_id, args.output.resolve())
+        print(f"{evaluation.task_id}: evaluated at {evaluation.overall_score:.2f}/10")
+        return
+    if args.command == "report-suite":
+        from .evaluator import report_suite
+
+        suite = report_suite(args.input_dir.resolve(), args.output.resolve())
+        print(suite.to_markdown())
+        if not suite.passes:
             raise SystemExit(1)
-        print(f"Evaluation passed at {evaluation.overall_score:.2f}/10")
         return
     runner = Runner(Path.cwd(), OpenAIModel())
     if args.command == "status":
