@@ -75,7 +75,10 @@ jobs:
           for file in .evolver/plan.json .evolver/proposal.json .evolver/runs.jsonl .evolver/evaluations/hello-world-smoke.json .evolver/evaluations/report.md; do
             if [ -f "$file" ]; then
               echo "$file:"
-              jq . "$file"
+              case "$file" in
+                *.json|*.jsonl) jq . "$file" ;;
+                *) cat "$file" ;;
+              esac
             fi
           done
 
