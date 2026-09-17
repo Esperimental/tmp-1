@@ -14,11 +14,22 @@ def _parser() -> argparse.ArgumentParser:
     run = subcommands.add_parser("run", help="Execute one incomplete step")
     run.add_argument("--preview", action="store_true", help="Persist and show argv without executing")
     subcommands.add_parser("status", help="Reconcile the saved plan with current state")
+    subcommands.add_parser("evaluate-smoke", help="Independently score the recorded smoke task")
     return parser
 
 
 def main() -> None:
     args = _parser().parse_args()
+    if args.command == "evaluate-smoke":
+        from .evaluator import evaluate_smoke
+
+        evaluation, report, failures = evaluate_smoke(Path.cwd())
+        print(report)
+        if failures:
+            print("Policy failures: " + "; ".join(failures))
+            raise SystemExit(1)
+        print(f"Evaluation passed at {evaluation.overall_score:.2f}/10")
+        return
     runner = Runner(Path.cwd(), OpenAIModel())
     if args.command == "status":
         plan = runner.load_or_create_plan()

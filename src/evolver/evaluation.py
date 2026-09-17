@@ -46,6 +46,16 @@ class Finding:
             confidence=confidence,
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "severity": self.severity,
+            "area": self.area,
+            "evidence": list(self.evidence),
+            "description": self.description,
+            "recommendation": self.recommendation,
+            "confidence": self.confidence,
+        }
+
 
 @dataclass(frozen=True)
 class TaskEvaluation:
@@ -85,6 +95,18 @@ class TaskEvaluation:
     @property
     def overall_score(self) -> float:
         return round(sum(self.scores.values()) / len(DIMENSIONS), 2)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "gate_result": self.gate_result,
+            "scores": self.scores,
+            "overall_score": self.overall_score,
+            "findings": [finding.to_dict() for finding in self.findings],
+            "strengths": list(self.strengths),
+            "improvement_priorities": list(self.improvement_priorities),
+            "metrics": self.metrics,
+        }
 
 
 @dataclass(frozen=True)
